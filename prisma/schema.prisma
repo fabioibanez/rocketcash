@@ -1,0 +1,159 @@
+// RocketCash data model
+// See SPEC.md §4. Auth.js models live alongside the finance domain tables.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Pooled connection (Supabase pgBouncer, port 6543) used at runtime.
+  url       = env("DATABASE_URL")
+  // Direct connection (port 5432) used for migrations.
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth.js (NextAuth) models — required by @auth/prisma-adapter
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  accounts Account[]
+  sessions Session[]
+  items    Item[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("auth_accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// RocketCash finance domain
+// ---------------------------------------------------------------------------
+
+// One row per linked bank connection (a Plaid "Item").
+model Item {
+  id               String   @id @default(cuid())
+  userId           String   @map("user_id")
+  plaidAccessToken String   @map("plaid_access_token") // encrypted at rest
+  plaidItemId      String   @unique @map("plaid_item_id")
+  syncCursor       String?  @map("sync_cursor")
+  institutionName  String?  @map("institution_name")
+  institutionId    String?  @map("institution_id")
+  status           String   @default("active") // active | error | disconnected
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts BankAccount[]
+
+  @@index([userId])
+  @@map("items")
+}
+
+// Individual accounts within an item.
+model BankAccount {
+  id             String   @id @default(cuid())
+  itemId         String   @map("item_id")
+  plaidAccountId String   @unique @map("plaid_account_id")
+  name           String
+  officialName   String?  @map("official_name")
+  mask           String?
+  type           String // "asset" | "liability"
+  plaidType      String?  @map("plaid_type") // depository | credit | loan | investment | other
+  subtype        String?
+  currentBalance Decimal  @default(0) @map("current_balance") @db.Decimal(14, 2)
+  availableBalance Decimal? @map("available_balance") @db.Decimal(14, 2)
+  currency       String   @default("USD")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  item               Item                @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  transactions       Transaction[]
+  historicalBalances HistoricalBalance[]
+
+  @@index([itemId])
+  @@map("accounts")
+}
+
+model Transaction {
+  id           String   @id @default(cuid())
+  accountId    String   @map("account_id")
+  plaidTxnId   String   @unique @map("plaid_txn_id")
+  date         DateTime @db.Date
+  name         String
+  merchantName String?  @map("merchant_name")
+  category     String?
+  amount       Decimal  @db.Decimal(14, 2) // positive = money out, negative = money in (Plaid convention)
+  currency     String   @default("USD")
+  pending      Boolean  @default(false)
+  logoUrl      String?  @map("logo_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  account BankAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([date(sort: Desc), createdAt(sort: Desc)])
+  @@map("transactions")
+}
+
+model HistoricalBalance {
+  id        String   @id @default(cuid())
+  accountId String   @map("account_id")
+  date      DateTime @db.Date
+  balance   Decimal  @db.Decimal(14, 2)
+  type      String // snapshot of asset/liability classification for fast net-worth math
+  createdAt DateTime @default(now()) @map("created_at")
+
+  account BankAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, date])
+  @@index([date])
+  @@map("historical_balances")
+}
