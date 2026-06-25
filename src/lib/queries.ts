@@ -208,6 +208,10 @@ function serializeTxn(t: {
   };
 }
 
+export async function countLinkedAccounts(userId: string): Promise<number> {
+  return prisma.bankAccount.count({ where: { item: { userId } } });
+}
+
 // Plaid amount convention: positive = money out (expense), negative = money in (income).
 // Internal transfers shouldn't count as real income/spending, so we drop them.
 function isTransfer(category: string | null): boolean {

@@ -1,13 +1,20 @@
+import { PieChart } from "lucide-react";
 import { getSession } from "@/lib/session";
-import { getCategoryBreakdown, type ReportRange } from "@/lib/queries";
+import {
+  getCategoryBreakdown,
+  countLinkedAccounts,
+  type ReportRange,
+} from "@/lib/queries";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { RangeTabs } from "@/components/charts/RangeTabs";
 import { ReportsView } from "@/components/charts/ReportsView";
+import { PlaidLinkButton } from "@/components/plaid/PlaidLinkButton";
 
 function parseRange(value: string | undefined): ReportRange {
   return value === "30d" || value === "3m" ? value : "mtd";
@@ -18,6 +25,18 @@ export default async function ReportsPage(props: {
 }) {
   const session = await getSession();
   const userId = session!.user.id;
+
+  if ((await countLinkedAccounts(userId)) === 0) {
+    return (
+      <EmptyState
+        icon={PieChart}
+        title="No reports yet"
+        description="Link a bank account to see where your money goes by category."
+      >
+        <PlaidLinkButton />
+      </EmptyState>
+    );
+  }
 
   const { range: rawRange } = await props.searchParams;
   const range = parseRange(rawRange);

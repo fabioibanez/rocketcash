@@ -1,5 +1,6 @@
+import { ArrowLeftRight } from "lucide-react";
 import { getSession } from "@/lib/session";
-import { getCashFlow } from "@/lib/queries";
+import { getCashFlow, countLinkedAccounts } from "@/lib/queries";
 import { formatCurrency } from "@/lib/utils";
 import {
   Card,
@@ -8,13 +9,27 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Stat } from "@/components/ui/stat";
+import { EmptyState } from "@/components/ui/empty-state";
 import { CashFlowChart } from "@/components/charts/CashFlowChart";
+import { PlaidLinkButton } from "@/components/plaid/PlaidLinkButton";
 
 const MONTHS = 6;
 
 export default async function CashFlowPage() {
   const session = await getSession();
   const userId = session!.user.id;
+
+  if ((await countLinkedAccounts(userId)) === 0) {
+    return (
+      <EmptyState
+        icon={ArrowLeftRight}
+        title="No cash flow yet"
+        description="Link a bank account to see your income and spending over time."
+      >
+        <PlaidLinkButton />
+      </EmptyState>
+    );
+  }
 
   const { data, totals, currency } = await getCashFlow(userId, MONTHS);
   const avgNet = totals.net / MONTHS;
