@@ -9,10 +9,8 @@ function toNum(d: Prisma.Decimal | number | null | undefined): number {
 export type AccountSummary = {
   id: string;
   name: string;
-  officialName: string | null;
   mask: string | null;
   type: "asset" | "liability";
-  subtype: string | null;
   currentBalance: number;
   currency: string;
   institutionName: string | null;
@@ -109,10 +107,8 @@ export async function getDashboardData(userId: string, historyDays = 365) {
   const accounts: AccountSummary[] = rawAccounts.map((a) => ({
     id: a.id,
     name: a.name,
-    officialName: a.officialName,
     mask: a.mask,
     type: a.type as "asset" | "liability",
-    subtype: a.subtype,
     currentBalance: toNum(a.currentBalance),
     currency: a.currency,
     institutionName: a.item.institutionName,
@@ -282,7 +278,6 @@ export async function getItemsWithAccounts(userId: string) {
       name: a.name,
       mask: a.mask,
       type: a.type as "asset" | "liability",
-      subtype: a.subtype,
       currentBalance: toNum(a.currentBalance),
       currency: a.currency,
     })),

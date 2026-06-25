@@ -31,12 +31,10 @@ export async function POST(request: Request) {
     const accessToken = exchange.data.access_token;
     const plaidItemId = exchange.data.item_id;
 
-    // Resolve the institution name for nicer UI.
     let institutionName: string | null = null;
-    let institutionId: string | null = null;
     try {
       const itemRes = await plaidClient.itemGet({ access_token: accessToken });
-      institutionId = itemRes.data.item.institution_id ?? null;
+      const institutionId = itemRes.data.item.institution_id;
       if (institutionId) {
         const inst = await plaidClient.institutionsGetById({
           institution_id: institutionId,
@@ -55,13 +53,11 @@ export async function POST(request: Request) {
         plaidItemId,
         plaidAccessToken: encrypt(accessToken),
         institutionName,
-        institutionId,
         status: "active",
       },
       update: {
         plaidAccessToken: encrypt(accessToken),
         institutionName,
-        institutionId,
         status: "active",
       },
     });

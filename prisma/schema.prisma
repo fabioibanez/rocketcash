@@ -84,7 +84,6 @@ model Item {
   plaidItemId      String   @unique @map("plaid_item_id")
   syncCursor       String?  @map("sync_cursor")
   institutionName  String?  @map("institution_name")
-  institutionId    String?  @map("institution_id")
   status           String   @default("active") // active | error | disconnected
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
@@ -102,13 +101,9 @@ model BankAccount {
   itemId         String   @map("item_id")
   plaidAccountId String   @unique @map("plaid_account_id")
   name           String
-  officialName   String?  @map("official_name")
   mask           String?
   type           String // "asset" | "liability"
-  plaidType      String?  @map("plaid_type") // depository | credit | loan | investment | other
-  subtype        String?
   currentBalance Decimal  @default(0) @map("current_balance") @db.Decimal(14, 2)
-  availableBalance Decimal? @map("available_balance") @db.Decimal(14, 2)
   currency       String   @default("USD")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
