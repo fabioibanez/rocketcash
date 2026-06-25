@@ -15,9 +15,6 @@ async function getVerificationKey(kid: string): Promise<JsonWebKey | null> {
 
   const res = await plaidClient.webhookVerificationKeyGet({ key_id: kid });
   const key = res.data.key as unknown as JsonWebKey;
-  if (key.x5c) {
-    // Not expected for Plaid (uses EC keys), guard anyway.
-  }
   keyCache.set(kid, key);
   return key;
 }
