@@ -6,9 +6,9 @@ A self-hosted, low-cost personal finance dashboard — net worth tracking, accou
 
 - **Next.js 16** (App Router, React Server Components) — UI + API in one repo
 - **Prisma 6** + **PostgreSQL** (Supabase)
-- **Auth.js (NextAuth v5)** with **Google** OAuth, database sessions
+- **Auth.js (NextAuth v5)** with **Google** OAuth, JWT sessions (Prisma adapter persists users/accounts)
 - **Plaid** (`plaid` + `react-plaid-link`) for bank linking & transactions
-- **Tailwind CSS v4** + shadcn-style components, **Recharts** for the net-worth chart
+- **Tailwind CSS v4** + shadcn-style components, **Recharts** for the net-worth, cash flow, and reports charts
 - **Vercel** for hosting + Cron (daily sync safety net)
 
 ## Project layout
@@ -20,6 +20,8 @@ src/
 │   ├── (main)/                  # Authenticated app (layout guards the session)
 │   │   ├── dashboard/           # Net worth, chart, accounts, recent txns
 │   │   ├── transactions/        # Searchable, paginated feed (URL params)
+│   │   ├── cashflow/            # Monthly income vs. spending
+│   │   ├── reports/             # Spending/income by category
 │   │   └── settings/            # Link / unlink banks, manual sync
 │   └── api/
 │       ├── auth/[...nextauth]/  # Auth.js handlers
@@ -49,8 +51,8 @@ Fill in `.env`:
 
 - **Supabase** — create a project, then copy both connection strings from
   *Project Settings → Database*. Use the **pooled** string (port `6543`,
-  add `?pgbouncer=true&connection_limit=1`) for `DATABASE_URL` and the
-  **direct** string (port `5432`) for `DIRECT_URL`.
+  add `?pgbouncer=true&connection_limit=5&pool_timeout=20`) for `DATABASE_URL`
+  and the **direct** string (port `5432`) for `DIRECT_URL`.
 - **Auth.js** — `AUTH_SECRET=$(openssl rand -base64 32)`. Create a Google
   OAuth client (Google Cloud Console → Credentials) and set
   `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`. Authorized redirect URI:
@@ -112,6 +114,5 @@ net-worth chart (`net worth = Σ assets − Σ liabilities`).
   scale. Plaid is the cost to watch — verify current pricing at
   [plaid.com/pricing](https://plaid.com/pricing). Build in sandbox first.
 - **PWA:** `public/manifest.json` + `public/icon.svg` make the app
-  installable. For best iOS home-screen fidelity, add PNG icons
-  (`icon-192x192.png`, `icon-512x512.png`) and reference them in the manifest.
-```
+  installable, with PNG icons (`icon-192x192.png`, `icon-512x512.png`,
+  `apple-touch-icon.png`) for home-screen fidelity.
