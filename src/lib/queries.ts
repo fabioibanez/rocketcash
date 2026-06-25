@@ -121,26 +121,6 @@ export async function getDashboardData(userId: string, historyDays = 365) {
   };
 }
 
-export async function getAccounts(userId: string): Promise<AccountSummary[]> {
-  const accounts = await prisma.bankAccount.findMany({
-    where: { item: { userId } },
-    include: { item: { select: { institutionName: true } } },
-    orderBy: [{ type: "asc" }, { currentBalance: "desc" }],
-  });
-
-  return accounts.map((a) => ({
-    id: a.id,
-    name: a.name,
-    officialName: a.officialName,
-    mask: a.mask,
-    type: a.type as "asset" | "liability",
-    subtype: a.subtype,
-    currentBalance: toNum(a.currentBalance),
-    currency: a.currency,
-    institutionName: a.item.institutionName,
-  }));
-}
-
 export function computeNetWorth(accounts: AccountSummary[]) {
   let assets = 0;
   let liabilities = 0;
@@ -149,35 +129,6 @@ export function computeNetWorth(accounts: AccountSummary[]) {
     else assets += a.currentBalance;
   }
   return { assets, liabilities, netWorth: assets - liabilities };
-}
-
-export async function getNetWorthHistory(
-  userId: string,
-  days = 365,
-): Promise<NetWorthPoint[]> {
-  const rows = await prisma.historicalBalance.findMany({
-    where: {
-      account: { item: { userId } },
-      date: { gte: historySince(days) },
-    },
-    select: { accountId: true, date: true, balance: true, type: true },
-    orderBy: { date: "asc" },
-  });
-
-  return buildNetWorthSeries(rows);
-}
-
-export async function getRecentTransactions(
-  userId: string,
-  limit = 8,
-): Promise<TransactionRow[]> {
-  const txns = await prisma.transaction.findMany({
-    where: { account: { item: { userId } } },
-    include: { account: { select: { name: true } } },
-    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-    take: limit,
-  });
-  return txns.map(serializeTxn);
 }
 
 export type TransactionQuery = {
