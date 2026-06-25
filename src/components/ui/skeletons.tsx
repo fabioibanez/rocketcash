@@ -62,3 +62,22 @@ export function DashboardSkeleton() {
     </div>
   );
 }
+
+export function CashFlowSkeleton() {
+  return (
+    <div className="space-y-6">
+      <PageHeaderSkeleton />
+      <StatRowSkeleton />
+      <div className="h-[360px] animate-pulse rounded-2xl border border-border bg-card" />
+    </div>
+  );
+}
+
+export function ReportsSkeleton() {
+  return (
+    <div className="space-y-6">
+      <PageHeaderSkeleton />
+      <div className="h-[320px] animate-pulse rounded-2xl border border-border bg-card" />
+    </div>
+  );
+}
