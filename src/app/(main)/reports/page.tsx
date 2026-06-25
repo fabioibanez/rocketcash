@@ -1,5 +1,5 @@
 import { PieChart } from "lucide-react";
-import { getSession } from "@/lib/session";
+import { getSession } from "@/auth";
 import {
   getCategoryBreakdown,
   countLinkedAccounts,
@@ -11,9 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
-import { RangeTabs } from "@/components/charts/RangeTabs";
-import { ReportsView } from "@/components/charts/ReportsView";
+import { RangeTabs, ReportsView } from "@/components/charts/ReportsView";
 import { PlaidLinkButton } from "@/components/plaid/PlaidLinkButton";
 
 function parseRange(value: string | undefined): ReportRange {
@@ -28,13 +26,18 @@ export default async function ReportsPage(props: {
 
   if ((await countLinkedAccounts(userId)) === 0) {
     return (
-      <EmptyState
-        icon={PieChart}
-        title="No reports yet"
-        description="Link a bank account to see where your money goes by category."
-      >
-        <PlaidLinkButton />
-      </EmptyState>
+      <div className="mx-auto flex max-w-md flex-col items-center justify-center py-20 text-center">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <PieChart className="h-7 w-7" />
+        </div>
+        <h1 className="text-xl font-semibold">No reports yet</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Link a bank account to see where your money goes by category.
+        </p>
+        <div className="mt-6">
+          <PlaidLinkButton />
+        </div>
+      </div>
     );
   }
 

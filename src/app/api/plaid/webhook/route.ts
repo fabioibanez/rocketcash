@@ -1,13 +1,12 @@
+import crypto from "node:crypto";
+import type { JsonWebKey } from "node:crypto";
 import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/db";
+import { plaidClient } from "@/lib/plaid";
 import { syncItem } from "@/lib/sync";
-import { verifyPlaidWebhook } from "@/lib/plaid-webhook";
 
-// A full sync (especially HISTORICAL_UPDATE) runs in the background via
-// `after()`, so give the invocation room to finish after the 200 is sent.
 export const maxDuration = 300;
 
-// Transaction-readiness pings that warrant pulling fresh deltas.
 const TRANSACTION_CODES = [
   "SYNC_UPDATES_AVAILABLE",
   "INITIAL_UPDATE",
@@ -15,12 +14,83 @@ const TRANSACTION_CODES = [
   "DEFAULT_UPDATE",
 ];
 
-// ITEM webhook codes that mean the connection needs the user to re-auth.
 const ITEM_ERROR_CODES = [
   "ERROR",
   "PENDING_EXPIRATION",
   "USER_PERMISSION_REVOKED",
 ];
+
+const keyCache = new Map<string, JsonWebKey>();
+
+function base64UrlDecode(input: string): Buffer {
+  return Buffer.from(input, "base64url");
+}
+
+async function getVerificationKey(kid: string): Promise<JsonWebKey | null> {
+  const cached = keyCache.get(kid);
+  if (cached) return cached;
+  const res = await plaidClient.webhookVerificationKeyGet({ key_id: kid });
+  const key = res.data.key as unknown as JsonWebKey;
+  keyCache.set(kid, key);
+  return key;
+}
+
+async function verifyPlaidWebhook(
+  rawBody: string,
+  verificationHeader: string | null,
+): Promise<boolean> {
+  if (!verificationHeader) return false;
+
+  const parts = verificationHeader.split(".");
+  if (parts.length !== 3) return false;
+  const [headerB64, payloadB64, signatureB64] = parts;
+
+  let header: { alg?: string; kid?: string };
+  try {
+    header = JSON.parse(base64UrlDecode(headerB64).toString("utf8"));
+  } catch {
+    return false;
+  }
+  if (header.alg !== "ES256" || !header.kid) return false;
+
+  const jwk = await getVerificationKey(header.kid);
+  if (!jwk) return false;
+
+  let publicKey: crypto.KeyObject;
+  try {
+    publicKey = crypto.createPublicKey({ key: jwk, format: "jwk" });
+  } catch {
+    return false;
+  }
+
+  const signingInput = `${headerB64}.${payloadB64}`;
+  const signature = base64UrlDecode(signatureB64);
+  const verified = crypto.verify(
+    "sha256",
+    Buffer.from(signingInput),
+    { key: publicKey, dsaEncoding: "ieee-p1363" },
+    signature,
+  );
+  if (!verified) return false;
+
+  let payload: { request_body_sha256?: string; iat?: number };
+  try {
+    payload = JSON.parse(base64UrlDecode(payloadB64).toString("utf8"));
+  } catch {
+    return false;
+  }
+
+  if (payload.iat && Date.now() / 1000 - payload.iat > 5 * 60) {
+    return false;
+  }
+
+  const bodyHash = crypto.createHash("sha256").update(rawBody).digest("hex");
+  if (!payload.request_body_sha256) return false;
+
+  const a = Buffer.from(bodyHash);
+  const b = Buffer.from(payload.request_body_sha256);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
@@ -59,8 +129,6 @@ export async function POST(request: Request) {
         webhook_code &&
         TRANSACTION_CODES.includes(webhook_code)
       ) {
-        // Acknowledge immediately; do the (potentially long) sync after the
-        // response is sent so Plaid doesn't time out or retry.
         after(async () => {
           try {
             await syncItem(item);
@@ -72,7 +140,6 @@ export async function POST(request: Request) {
           }
         });
       } else if (webhook_type === "ITEM" && webhook_code) {
-        // Surface re-auth / repair state so the UI can prompt the user.
         const status = ITEM_ERROR_CODES.includes(webhook_code)
           ? "error"
           : webhook_code === "LOGIN_REPAIRED"
@@ -87,6 +154,5 @@ export async function POST(request: Request) {
     }
   }
 
-  // Always 200 quickly so Plaid doesn't retry unnecessarily.
   return NextResponse.json({ received: true });
 }

@@ -1,8 +1,38 @@
 import { Suspense } from "react";
-import { getSession } from "@/lib/session";
+import { getSession } from "@/auth";
+import { getTransactionsPage } from "@/lib/queries";
 import { TransactionSearch } from "@/components/transactions/TransactionSearch";
-import { TransactionsContent } from "@/components/transactions/TransactionsContent";
+import { TransactionList } from "@/components/transactions/TransactionList";
+import { Pagination } from "@/components/transactions/Pagination";
 import { TransactionListSkeleton } from "@/components/ui/skeletons";
+import { Card, CardContent } from "@/components/ui/card";
+
+async function TransactionsList({
+  userId,
+  query,
+  page,
+}: {
+  userId: string;
+  query: string;
+  page: number;
+}) {
+  const { transactions, total, totalPages } = await getTransactionsPage(userId, {
+    query,
+    page,
+    pageSize: 25,
+  });
+
+  return (
+    <>
+      <Card>
+        <CardContent className="p-4 md:p-5">
+          <TransactionList transactions={transactions} />
+        </CardContent>
+      </Card>
+      <Pagination page={page} totalPages={totalPages} total={total} />
+    </>
+  );
+}
 
 export default async function TransactionsPage(props: {
   searchParams: Promise<{ query?: string; page?: string }>;
@@ -29,7 +59,7 @@ export default async function TransactionsPage(props: {
         key={`${query}:${page}`}
         fallback={<TransactionListSkeleton rows={10} />}
       >
-        <TransactionsContent userId={userId} query={query} page={page} />
+        <TransactionsList userId={userId} query={query} page={page} />
       </Suspense>
     </div>
   );

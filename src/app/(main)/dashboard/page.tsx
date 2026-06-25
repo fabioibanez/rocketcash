@@ -1,24 +1,24 @@
 import Link from "next/link";
 import { ArrowUpRight, TrendingUp, Wallet } from "lucide-react";
-import { getSession } from "@/lib/session";
+import { getSession } from "@/auth";
 import {
   getDashboardData,
   computeNetWorth,
   getCashFlow,
 } from "@/lib/queries";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
+  Stat,
 } from "@/components/ui/card";
-import { Stat } from "@/components/ui/stat";
 import { NetWorthChart } from "@/components/transactions/NetWorthChart";
 import { TransactionList } from "@/components/transactions/TransactionList";
 import { AccountBreakdown } from "@/components/dashboard/AccountBreakdown";
-import { MobileAccountCards } from "@/components/dashboard/MobileAccountCards";
 import { PlaidLinkButton } from "@/components/plaid/PlaidLinkButton";
+import type { AccountSummary } from "@/lib/queries";
 
 export default async function DashboardPage() {
   const session = await getSession();
@@ -125,6 +125,37 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function MobileAccountCards({ accounts }: { accounts: AccountSummary[] }) {
+  if (accounts.length === 0) return null;
+
+  return (
+    <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
+      {accounts.map((a) => (
+        <div
+          key={a.id}
+          className="min-w-[180px] snap-start rounded-xl border border-border bg-card p-4 shadow-sm"
+        >
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "h-2 w-2 rounded-full",
+                a.type === "liability" ? "bg-destructive" : "bg-success",
+              )}
+            />
+            <p className="truncate text-xs text-muted-foreground">
+              {a.institutionName ?? "Bank"}
+            </p>
+          </div>
+          <p className="mt-2 truncate text-sm font-medium">{a.name}</p>
+          <p className="mt-1 text-lg font-semibold tabular-nums">
+            {formatCurrency(a.currentBalance, a.currency)}
+          </p>
+        </div>
+      ))}
     </div>
   );
 }

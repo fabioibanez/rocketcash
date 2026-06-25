@@ -1,5 +1,5 @@
 import { ArrowLeftRight } from "lucide-react";
-import { getSession } from "@/lib/session";
+import { getSession } from "@/auth";
 import { getCashFlow, countLinkedAccounts } from "@/lib/queries";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -7,9 +7,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Stat,
 } from "@/components/ui/card";
-import { Stat } from "@/components/ui/stat";
-import { EmptyState } from "@/components/ui/empty-state";
 import { CashFlowChart } from "@/components/charts/CashFlowChart";
 import { PlaidLinkButton } from "@/components/plaid/PlaidLinkButton";
 
@@ -21,13 +20,18 @@ export default async function CashFlowPage() {
 
   if ((await countLinkedAccounts(userId)) === 0) {
     return (
-      <EmptyState
-        icon={ArrowLeftRight}
-        title="No cash flow yet"
-        description="Link a bank account to see your income and spending over time."
-      >
-        <PlaidLinkButton />
-      </EmptyState>
+      <div className="mx-auto flex max-w-md flex-col items-center justify-center py-20 text-center">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <ArrowLeftRight className="h-7 w-7" />
+        </div>
+        <h1 className="text-xl font-semibold">No cash flow yet</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Link a bank account to see your income and spending over time.
+        </p>
+        <div className="mt-6">
+          <PlaidLinkButton />
+        </div>
+      </div>
     );
   }
 

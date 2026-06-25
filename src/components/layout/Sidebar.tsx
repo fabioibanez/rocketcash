@@ -3,9 +3,27 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Rocket, LogOut, Menu, X } from "lucide-react";
+import {
+  Rocket,
+  LogOut,
+  Menu,
+  X,
+  LayoutDashboard,
+  Receipt,
+  ArrowLeftRight,
+  PieChart,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { navItems } from "./nav-items";
+
+const navItems: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/transactions", label: "Transactions", icon: Receipt },
+  { href: "/cashflow", label: "Cash Flow", icon: ArrowLeftRight },
+  { href: "/reports", label: "Reports", icon: PieChart },
+  { href: "/settings", label: "Settings", icon: Settings },
+];
 
 type SidebarProps = {
   user?: { name?: string | null; email?: string | null; image?: string | null };
