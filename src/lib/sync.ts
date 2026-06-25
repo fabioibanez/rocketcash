@@ -144,6 +144,58 @@ async function snapshotBalances(accountMap: Map<string, string>) {
 }
 
 /**
+ * Reconstruct historical daily balances from transaction history.
+ *
+ * Plaid only exposes *current* balances, so we walk each account's balance
+ * backwards through its transactions to approximate net worth over time. Per
+ * Plaid's convention a positive `amount` is money leaving the account, so an
+ * asset's earlier balance = current + (flows that happened after that day);
+ * liabilities move the opposite way. We only write a point on days a
+ * transaction occurred (the chart carries the last value forward), and
+ * `skipDuplicates` keeps real same-day snapshots intact.
+ */
+async function backfillBalances(accountIds: string[]) {
+  for (const accountId of accountIds) {
+    const acc = await prisma.bankAccount.findUnique({
+      where: { id: accountId },
+      select: { currentBalance: true, type: true },
+    });
+    if (!acc) continue;
+
+    const txns = await prisma.transaction.findMany({
+      where: { accountId },
+      select: { date: true, amount: true },
+    });
+    if (txns.length === 0) continue;
+
+    const dayFlow = new Map<string, number>();
+    for (const t of txns) {
+      const key = t.date.toISOString().slice(0, 10);
+      dayFlow.set(key, (dayFlow.get(key) ?? 0) + t.amount.toNumber());
+    }
+
+    const dates = [...dayFlow.keys()].sort();
+    const sign = acc.type === "liability" ? -1 : 1;
+    const current = acc.currentBalance.toNumber();
+
+    let suffix = 0; // sum of amounts strictly after the day being processed
+    const rows: { accountId: string; date: Date; balance: number; type: string }[] = [];
+    for (let i = dates.length - 1; i >= 0; i--) {
+      const d = dates[i];
+      rows.push({
+        accountId,
+        date: new Date(`${d}T00:00:00.000Z`),
+        balance: current + sign * suffix,
+        type: acc.type,
+      });
+      suffix += dayFlow.get(d)!;
+    }
+
+    await prisma.historicalBalance.createMany({ data: rows, skipDuplicates: true });
+  }
+}
+
+/**
  * Sync a single item: refresh balances, pull transaction deltas via the
  * cursor, persist everything, and snapshot net worth.
  */
@@ -180,6 +232,7 @@ export async function syncItem(item: ItemForSync) {
 
   await writeTransactions(added, modified, removed, accountMap);
   await snapshotBalances(accountMap);
+  await backfillBalances([...accountMap.values()]);
 
   await prisma.item.update({
     where: { id: item.id },
