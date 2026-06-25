@@ -1,14 +1,19 @@
 import { redirect } from "next/navigation";
 import { Rocket } from "lucide-react";
 import { signIn } from "@/auth";
-import { getSession } from "@/lib/session";
+import { getSession } from "@/auth";
 import { Card, CardContent } from "@/components/ui/card";
 
-export default async function LoginPage() {
+export default async function LoginPage(props: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const session = await getSession();
   if (session?.user) {
     redirect("/dashboard");
   }
+
+  const { error } = await props.searchParams;
+  const accessDenied = error === "AccessDenied";
 
   async function signInWithGoogle() {
     "use server";
@@ -30,6 +35,12 @@ export default async function LoginPage() {
 
         <Card>
           <CardContent className="p-6">
+            {accessDenied && (
+              <p className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
+                This instance is private. Your Google account isn&apos;t on the
+                allowlist.
+              </p>
+            )}
             <form action={signInWithGoogle}>
               <button
                 type="submit"

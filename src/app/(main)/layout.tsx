@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { signOut } from "@/auth";
-import { getSession } from "@/lib/session";
+import { getSession } from "@/auth";
 import { Sidebar } from "@/components/layout/Sidebar";
 
 export default async function MainLayout({

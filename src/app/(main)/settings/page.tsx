@@ -1,5 +1,5 @@
 import { Building2, CircleAlert } from "lucide-react";
-import { getSession } from "@/lib/session";
+import { getSession } from "@/auth";
 import { getItemsWithAccounts } from "@/lib/queries";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import {
