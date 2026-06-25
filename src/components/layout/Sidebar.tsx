@@ -16,11 +16,6 @@ export function Sidebar({ user, signOutAction }: SidebarProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  // Close the mobile drawer whenever the route changes.
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
-
   // Lock body scroll while the mobile drawer is open.
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -91,6 +86,7 @@ export function Sidebar({ user, signOutAction }: SidebarProps) {
                 key={item.href}
                 href={item.href}
                 prefetch={process.env.NODE_ENV === "production"}
+                onClick={() => setOpen(false)}
                 className={cn(
                   "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
                   active
