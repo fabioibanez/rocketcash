@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import {
   getDashboardData,
   computeNetWorth,
+  getCashFlow,
 } from "@/lib/queries";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -12,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Stat } from "@/components/ui/stat";
 import { NetWorthChart } from "@/components/transactions/NetWorthChart";
 import { TransactionList } from "@/components/transactions/TransactionList";
 import { AccountBreakdown } from "@/components/dashboard/AccountBreakdown";
@@ -23,9 +25,6 @@ export default async function DashboardPage() {
   const userId = session!.user.id;
 
   const { accounts, history, recent } = await getDashboardData(userId);
-
-  const { assets, liabilities, netWorth } = computeNetWorth(accounts);
-  const currency = accounts[0]?.currency ?? "USD";
 
   if (accounts.length === 0) {
     return (
@@ -45,30 +44,30 @@ export default async function DashboardPage() {
     );
   }
 
+  const { assets, liabilities, netWorth } = computeNetWorth(accounts);
+  const currency = accounts[0]?.currency ?? "USD";
+  const { totals: month } = await getCashFlow(userId, 1);
+
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      {/* Header / net worth */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Net worth</p>
-          <p className="text-4xl font-semibold tracking-tight tabular-nums">
-            {formatCurrency(netWorth, currency)}
-          </p>
-        </div>
-        <div className="flex gap-6">
-          <div>
-            <p className="text-xs text-muted-foreground">Assets</p>
-            <p className="text-lg font-semibold text-success tabular-nums">
-              {formatCurrency(assets, currency)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Liabilities</p>
-            <p className="text-lg font-semibold text-destructive tabular-nums">
-              {formatCurrency(liabilities, currency)}
-            </p>
-          </div>
-        </div>
+    <div className="space-y-6">
+      {/* Net worth hero */}
+      <div>
+        <p className="text-sm text-muted-foreground">Net worth</p>
+        <p className="text-4xl font-semibold tracking-tight tabular-nums md:text-5xl">
+          {formatCurrency(netWorth, currency)}
+        </p>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Assets" value={formatCurrency(assets, currency)} tone="income" />
+        <Stat
+          label="Liabilities"
+          value={formatCurrency(liabilities, currency)}
+          tone="expense"
+        />
+        <Stat label="Income this month" value={formatCurrency(month.income, currency)} />
+        <Stat label="Spending this month" value={formatCurrency(month.expenses, currency)} />
       </div>
 
       {/* Mobile: swipeable account balances */}

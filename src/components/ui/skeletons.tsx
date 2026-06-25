@@ -36,14 +36,28 @@ export function PageHeaderSkeleton() {
   );
 }
 
+function StatRowSkeleton({ count = 4 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="rounded-2xl border border-border p-5">
+          <div className="h-3 w-16 animate-pulse rounded bg-muted" />
+          <div className="mt-2 h-7 w-24 animate-pulse rounded bg-muted" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function DashboardSkeleton() {
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <div className="space-y-2">
         <div className="h-4 w-20 animate-pulse rounded bg-muted" />
         <div className="h-10 w-56 animate-pulse rounded bg-muted" />
       </div>
-      <div className="h-[300px] animate-pulse rounded-xl border border-border bg-card" />
+      <StatRowSkeleton count={3} />
+      <div className="h-[320px] animate-pulse rounded-2xl border border-border bg-card" />
       <TransactionListSkeleton rows={5} />
     </div>
   );
