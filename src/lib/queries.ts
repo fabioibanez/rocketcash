@@ -208,6 +208,138 @@ function serializeTxn(t: {
   };
 }
 
+// Plaid amount convention: positive = money out (expense), negative = money in (income).
+// Internal transfers shouldn't count as real income/spending, so we drop them.
+function isTransfer(category: string | null): boolean {
+  if (!category) return false;
+  return /^transfer/i.test(category);
+}
+
+export type CashFlowMonth = {
+  month: string; // YYYY-MM
+  label: string; // e.g. "Jan"
+  income: number;
+  expenses: number;
+  net: number;
+};
+
+export async function getCashFlow(userId: string, months = 6) {
+  const start = new Date();
+  start.setUTCDate(1);
+  start.setUTCHours(0, 0, 0, 0);
+  start.setUTCMonth(start.getUTCMonth() - (months - 1));
+
+  const txns = await prisma.transaction.findMany({
+    where: { account: { item: { userId } }, date: { gte: start } },
+    select: { date: true, amount: true, category: true, currency: true },
+  });
+
+  const buckets = new Map<string, { income: number; expenses: number }>();
+  for (let i = 0; i < months; i++) {
+    const d = new Date(start);
+    d.setUTCMonth(start.getUTCMonth() + i);
+    buckets.set(d.toISOString().slice(0, 7), { income: 0, expenses: 0 });
+  }
+
+  let currency = "USD";
+  for (const t of txns) {
+    if (isTransfer(t.category)) continue;
+    const key = t.date.toISOString().slice(0, 7);
+    const bucket = buckets.get(key);
+    if (!bucket) continue;
+    currency = t.currency;
+    const amt = toNum(t.amount);
+    if (amt < 0) bucket.income += -amt;
+    else bucket.expenses += amt;
+  }
+
+  const data: CashFlowMonth[] = [...buckets.entries()].map(([month, v]) => ({
+    month,
+    label: new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-US", {
+      month: "short",
+      timeZone: "UTC",
+    }),
+    income: v.income,
+    expenses: v.expenses,
+    net: v.income - v.expenses,
+  }));
+
+  const totals = data.reduce(
+    (acc, m) => ({
+      income: acc.income + m.income,
+      expenses: acc.expenses + m.expenses,
+      net: acc.net + m.net,
+    }),
+    { income: 0, expenses: 0, net: 0 },
+  );
+
+  return { data, totals, currency };
+}
+
+export type ReportRange = "mtd" | "30d" | "3m";
+export type CategorySpend = { category: string; amount: number; share: number };
+
+function rangeBounds(range: ReportRange): { start: Date; label: string } {
+  const start = new Date();
+  start.setUTCHours(0, 0, 0, 0);
+  if (range === "mtd") {
+    start.setUTCDate(1);
+    return { start, label: "This month" };
+  }
+  if (range === "3m") {
+    start.setUTCMonth(start.getUTCMonth() - 3);
+    return { start, label: "Last 3 months" };
+  }
+  start.setUTCDate(start.getUTCDate() - 30);
+  return { start, label: "Last 30 days" };
+}
+
+export async function getCategoryBreakdown(userId: string, range: ReportRange) {
+  const { start, label } = rangeBounds(range);
+
+  const txns = await prisma.transaction.findMany({
+    where: { account: { item: { userId } }, date: { gte: start } },
+    select: { amount: true, category: true, currency: true },
+  });
+
+  const spend = new Map<string, number>();
+  const earn = new Map<string, number>();
+  let currency = "USD";
+
+  for (const t of txns) {
+    if (isTransfer(t.category)) continue;
+    currency = t.currency;
+    const cat = t.category ?? "Uncategorized";
+    const amt = toNum(t.amount);
+    if (amt > 0) spend.set(cat, (spend.get(cat) ?? 0) + amt);
+    else if (amt < 0) earn.set(cat, (earn.get(cat) ?? 0) + -amt);
+  }
+
+  const build = (m: Map<string, number>): { rows: CategorySpend[]; total: number } => {
+    const total = [...m.values()].reduce((s, v) => s + v, 0);
+    const rows = [...m.entries()]
+      .map(([category, amount]) => ({
+        category,
+        amount,
+        share: total > 0 ? amount / total : 0,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+    return { rows, total };
+  };
+
+  const spending = build(spend);
+  const income = build(earn);
+
+  return {
+    rangeLabel: label,
+    currency,
+    spending: spending.rows,
+    totalSpending: spending.total,
+    income: income.rows,
+    totalIncome: income.total,
+  };
+}
+
 export async function getItemsWithAccounts(userId: string) {
   const items = await prisma.item.findMany({
     where: { userId },
