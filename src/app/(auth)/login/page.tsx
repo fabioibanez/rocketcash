@@ -22,7 +22,7 @@ export default async function LoginPage() {
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
             <Rocket className="h-7 w-7" />
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">rocketcash</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">RocketCash</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             The budget-friendly budgeting app. If you are tired of apps that promise to help you slash subscriptions, but are subscriptions themselves then check this out!
           </p>
